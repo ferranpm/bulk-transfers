@@ -7,6 +7,6 @@ CI.run do
   step "Style: Ruby", "bin/rubocop"
   step "Security: Gem audit", "bin/bundler-audit"
   step "Security: Brakeman", "bin/brakeman --quiet --no-pager --exit-on-warn"
-  step "Tests: Prepare DB", "env RAILS_ENV=test bin/rails db:prepare"
-  step "Tests: RSpec", "env RAILS_ENV=test bin/rspec"
+  step "Tests: Prepare DB", "bin/rails db:test:prepare"
+  step "Tests: RSpec", "bin/rspec --format progress"
 end
