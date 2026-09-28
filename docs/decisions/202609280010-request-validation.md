@@ -22,7 +22,8 @@ lock contention.
   - Currency is `EUR` (otherwise `issue: "unsupported_currency"`).
   - BIC matches `\A[A-Z0-9]{8}([A-Z0-9]{3})?\z`.
   - IBAN matches `\A[A-Z]{2}\d{2}[A-Z0-9]{1,30}\z`.
-  - `counterparty_name` ≤ 70 characters, `description` ≤ 140.
+  - `counterparty_name` ≤ 70 characters, `description` ≤ 140: the SEPA limits for name and remittance
+    information, so an accepted transfer can be executed as is (see `schema-changes`).
   - Amount per `money-representation`.
 - **No cap on bulk size.**
 - All sample IBANs and BICs in the brief pass these patterns (verified).
