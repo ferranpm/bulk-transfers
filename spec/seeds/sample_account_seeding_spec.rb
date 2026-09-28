@@ -36,7 +36,7 @@ RSpec.describe "db:seed", type: :task do
   it "seeds a balance that equals the sum of the account's transactions" do
     seed
 
-    expect(BankAccount.find(1).balance_cents).to eq(Transaction.where(bank_account_id: 1).sum(:amount_cents))
+    expect_ledger_invariants!
   end
 
   it "hands out the next ids after the seeded ones" do
@@ -58,7 +58,7 @@ RSpec.describe "db:seed", type: :task do
         .to not_change { BankAccount.find(1).balance_cents }.from(9_997_500)
         .and not_change(BankAccount, :count)
         .and not_change(Transaction, :count)
-      expect(BankAccount.find(1).balance_cents).to eq(Transaction.where(bank_account_id: 1).sum(:amount_cents))
+      expect_ledger_invariants!
     end
   end
 end
