@@ -14,11 +14,15 @@ back and a reliable way to line them up with request items.
 
 ## Chosen
 
-- A single `insert_all` for all transaction rows with `returning: :id`: one statement, one round trip.
+- A single `insert_all!` for all transaction rows with `returning: :id`: one statement, one round trip. The bang
+  form has no `ON CONFLICT` clause, so a row can never be skipped silently.
 - Validation has already run in the request parser (decision 10), and the DB `CHECK`s and `NOT NULL`s
   (decision 7) are the backstop.
-- The call carries an inline `# rubocop:disable Rails/SkipsModelValidations` with a comment explaining why.
-  This is the one place an inline disable is sanctioned.
+- The balance is decreased with a guarded `update_all` (`balance_cents = balance_cents - :total WHERE id = :id
+  AND balance_cents >= :total`), debited **before** the rows are inserted so a refused debit has written nothing.
+- Both Ledger calls carry an inline `# rubocop:disable Rails/SkipsModelValidations` with a comment explaining
+  why. These are the only places in production code where an inline disable is sanctioned. The cop is excluded
+  for `spec/` (constraint specs must write past validations) and `db/seeds.rb`.
 - Response items are ordered by `id`. **Assumption:** for a single multi-row `INSERT ... VALUES`, PostgreSQL
   evaluates the `nextval` defaults in `VALUES` order, so ids ascend in request order. Other sessions may take
   ids in between (leaving gaps), but a sequence only moves forward, so the relative order of our rows holds.
@@ -27,6 +31,10 @@ back and a reliable way to line them up with request items.
 
 - **`create!` per row**: N round trips while holding the account lock, which matters because there is no bulk
   cap.
+- **Raw SQL via `connection.update` for the balance**: avoids the cop warning, but only by hiding the bypass; the
+  query builder plus an explicit, justified disable is more honest and idiomatic.
+- **`account.update!(balance_cents: account.balance_cents - total)`**: writes a Ruby-computed balance, which
+  would silently overwrite a concurrent change if the lock were ever lost.
 
 ## Consequences
 
