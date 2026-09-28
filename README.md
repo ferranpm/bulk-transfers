@@ -27,7 +27,9 @@ the original result back and no money moves twice.
 | **503 Service Unavailable** | Transient (account contention, database hiccup). Nothing applied; retry with the same key after `Retry-After`. |
 
 Amounts are decimal strings in euros (`"14.5"`, `"61238"`), positive, with at most two decimals. JSON numbers
-are refused, because a float has already lost the exact value. The only currency is `EUR`.
+are refused, because a float has already lost the exact value, and so are exponent forms like `"2e3"`. The
+only currency is `EUR`. Counterparty names are limited to 70 characters and descriptions to 140, matching the
+SEPA field limits so every accepted transfer can later be sent on the SEPA rails.
 
 *Why:* [1 Success status and body](docs/decisions/202609280001-api-success-status-and-body.md) ·
 [2 Replay response](docs/decisions/202609280002-idempotent-replay-response.md) ·
@@ -202,7 +204,10 @@ Left out deliberately rather than half-built:
 
 - **Full IBAN/BIC validation.** Today it checks shape only. Production should use a library such as
   [`ibandit`](https://github.com/gocardless/ibandit) (checksum, country lengths, BIC directory).
-- **A bulk size cap and asynchronous processing** for very large bulks.
+- **A bulk size cap and asynchronous processing.** Bulks are processed synchronously with no size limit, so
+  a very large one holds the account lock for longer, making other requests on that account wait (503 after
+  2 s), and it's rolled back if its insert passes the 10 s statement timeout. The fix is a cap, with larger
+  bulks accepted as `202` and processed by a job.
 - **Idempotency key expiry.**
 - **Authentication and authorisation.**
 - **Executing the transfers** (SEPA) and publishing events downstream (outbox).
