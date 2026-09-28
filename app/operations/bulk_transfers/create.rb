@@ -46,6 +46,9 @@ module BulkTransfers
 
     def apply(request)
       ActiveRecord::Base.transaction(requires_new: true) do
+        # SELECT ... FOR UPDATE on the account row: the only lock this operation takes. It serialises every
+        # request for this account across instances, so the idempotency lookup and the funds check below see
+        # every committed bulk. A second lock would need a fixed acquisition order (PLAN pessimistic-row-lock).
         account = BankAccount.lock.find_by(iban: request.organization_iban, bic: request.organization_bic)
         raise AccountNotFoundError if account.nil?
 

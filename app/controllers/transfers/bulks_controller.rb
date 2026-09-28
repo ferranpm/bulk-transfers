@@ -13,6 +13,8 @@ module Transfers
       result = BulkTransfers::Create.call(idempotency_key:, **permitted_body)
       return render_error(result.errors.sole) if result.failed?
 
+      # 201 with a body so the client can map each line to its transfer id; 200 marks a replay of the same
+      # body (PLAN api-success-status-and-body, PLAN idempotent-replay-response).
       render json: BulkTransfers::Presenter.new(result.value).as_json,
              status: result.idempotent_replay? ? :ok : :created
     end

@@ -5,7 +5,7 @@ require "database_cleaner/active_record"
 # Concurrency specs run real threads, each on its own connection. A wrapping
 # test transaction would be invisible to those connections and would hide the
 # row locks under test, so `:concurrency` groups commit for real and truncate
-# afterwards.
+# afterwards (PLAN testing-strategy).
 module ConcurrencyDatabaseCleaning
   extend ActiveSupport::Concern
 

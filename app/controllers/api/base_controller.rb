@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 module Api
-  # JSON-only base: no CSRF, cookies or views. Every error leaves as the one envelope
+  # JSON-only base: no CSRF, cookies or views, while the app keeps the full Rails stack (PLAN keep-full-rails-stack).
+  # Every error leaves as the one envelope
   # { error: { code, message, details } } (PLAN error-model).
   class BaseController < ActionController::API
     # The controllers read the raw body keys themselves; wrapping would only add a duplicate nested copy.
