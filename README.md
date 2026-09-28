@@ -84,13 +84,6 @@ bulk I already paid" apart from "a second, identical payroll".
 be positive with at most two decimals. JSON numbers (`14.5` without quotes) are refused, because once a
 client has serialised an amount as a float, its exact value is already uncertain. The only currency is `EUR`.
 
-**Why 201 and not 204?** The brief contradicts itself. Its text says 201, while its OpenAPI block and the
-original statement say 204. We return **201 with a body**, because a bulk client needs to map each of its
-lines to the transfer id we created, and a 204 has no body to carry that
-([decision 1](docs/decisions/202609280001-api-success-status-and-body.md)). The replay returns **200** with the
-same body, so support and debugging can tell a replay from a new bulk
-([decision 2](docs/decisions/202609280002-idempotent-replay-response.md)).
-
 ## 3. Run it
 
 Requirements: Docker with Compose.
@@ -176,6 +169,7 @@ Validation `issue` values:
 - `missing`, `must_be_a_string`, `blank`, `too_long` (name > 70, description > 140), and `invalid_format`
   (IBAN, BIC or amount shape).
 - For amounts: `must_be_positive`, `too_many_decimals`, `too_large`.
+- `invalid_characters` for a text field containing a NUL character, which PostgreSQL text columns can't store.
 - `unsupported_currency` for anything other than `EUR`.
 - For the list itself: `must_be_an_array`, `must_not_be_empty`, `must_be_an_object`.
 
