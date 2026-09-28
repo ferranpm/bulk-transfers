@@ -14,11 +14,19 @@ sample_account_attributes = {
 }
 
 sample_transactions_attributes = {
-  1 => { counterparty_name: "ACME Corp. Main Account", counterparty_iban: "EE382200221020145685",
-         counterparty_bic: "CCOPFRPPXXX", amount_cents: 11_000_000, amount_currency: "EUR", bank_account_id: 1,
+  1 => { counterparty_name: "ACME Corp. Main Account",
+         counterparty_iban: "EE382200221020145685",
+         counterparty_bic: "CCOPFRPPXXX",
+         amount_cents: 11_000_000,
+         amount_currency: "EUR",
+         bank_account_id: 1,
          description: "Treasury income" },
-  2 => { counterparty_name: "Bip Bip", counterparty_iban: "EE383680981021245685",
-         counterparty_bic: "CRLYFRPPTOU", amount_cents: -1_000_000, amount_currency: "EUR", bank_account_id: 1,
+  2 => { counterparty_name: "Bip Bip",
+         counterparty_iban: "EE383680981021245685",
+         counterparty_bic: "CRLYFRPPTOU",
+         amount_cents: -1_000_000,
+         amount_currency: "EUR",
+         bank_account_id: 1,
          description: "Bip Bip Salary" }
 }
 

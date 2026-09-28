@@ -20,19 +20,29 @@ RSpec.describe "POST /transfers/bulk", type: :request do
 
       expect(response).to have_http_status(:created)
       bulk_transfer = response.parsed_body.fetch("bulk_transfer")
-      expect(bulk_transfer).to include("id" => BulkTransfer.sole.id, "transfer_count" => 3,
+      expect(bulk_transfer).to include("id" => BulkTransfer.sole.id,
+                                       "transfer_count" => 3,
                                        "total_amount_cents" => 6_225_150)
       expect(Time.iso8601(bulk_transfer.fetch("created_at"))).to be_within(1.minute).of(Time.current)
       expect(bulk_transfer.fetch("credit_transfers").map { it.except("id") }).to eq(
         [
-          { "amount_cents" => 1_450, "amount_currency" => "EUR", "counterparty_name" => "Bip Bip",
-            "counterparty_iban" => "EE383680981021245685", "counterparty_bic" => "CRLYFRPPTOU",
+          { "amount_cents" => 1_450,
+            "amount_currency" => "EUR",
+            "counterparty_name" => "Bip Bip",
+            "counterparty_iban" => "EE383680981021245685",
+            "counterparty_bic" => "CRLYFRPPTOU",
             "description" => "Wonderland/4410" },
-          { "amount_cents" => 6_123_800, "amount_currency" => "EUR", "counterparty_name" => "Wile E Coyote",
-            "counterparty_iban" => "DE9935420810036209081725212", "counterparty_bic" => "ZDRPLBQI",
+          { "amount_cents" => 6_123_800,
+            "amount_currency" => "EUR",
+            "counterparty_name" => "Wile E Coyote",
+            "counterparty_iban" => "DE9935420810036209081725212",
+            "counterparty_bic" => "ZDRPLBQI",
             "description" => "//TeslaMotors/Invoice/12" },
-          { "amount_cents" => 99_900, "amount_currency" => "EUR", "counterparty_name" => "Bugs Bunny",
-            "counterparty_iban" => "FR0010009380540930414023042", "counterparty_bic" => "RNJZNTMC",
+          { "amount_cents" => 99_900,
+            "amount_currency" => "EUR",
+            "counterparty_name" => "Bugs Bunny",
+            "counterparty_iban" => "FR0010009380540930414023042",
+            "counterparty_bic" => "RNJZNTMC",
             "description" => "2020 09 24/2020 09 25/GoldenCarrot/" }
         ]
       )
@@ -55,7 +65,8 @@ RSpec.describe "POST /transfers/bulk", type: :request do
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body).to eq(
-        "error" => { "code" => "insufficient_funds", "message" => "Insufficient funds",
+        "error" => { "code" => "insufficient_funds",
+                     "message" => "Insufficient funds",
                      "details" => { "required_amount_cents" => 10_648_216, "available_balance_cents" => 10_000_000 } }
       )
       expect_ledger_invariants!
@@ -150,7 +161,8 @@ RSpec.describe "POST /transfers/bulk", type: :request do
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body).to eq(
-        "error" => { "code" => "validation_failed", "message" => ValidationFailedError.default_message,
+        "error" => { "code" => "validation_failed",
+                     "message" => ValidationFailedError.default_message,
                      "details" => [{ "index" => 0, "field" => "amount", "issue" => "must_be_a_string" }] }
       )
     end

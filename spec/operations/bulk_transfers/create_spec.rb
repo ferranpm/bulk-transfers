@@ -4,8 +4,11 @@ RSpec.describe BulkTransfers::Create do
   describe ".call" do
     def credit_transfer_params(amount:, counterparty_name: "Bip Bip")
       {
-        "amount" => amount, "currency" => "EUR", "counterparty_name" => counterparty_name,
-        "counterparty_iban" => "EE383680981021245685", "counterparty_bic" => "CRLYFRPPTOU",
+        "amount" => amount,
+        "currency" => "EUR",
+        "counterparty_name" => counterparty_name,
+        "counterparty_iban" => "EE383680981021245685",
+        "counterparty_bic" => "CRLYFRPPTOU",
         "description" => "Wonderland/4410"
       }
     end
@@ -103,8 +106,10 @@ RSpec.describe BulkTransfers::Create do
         result = nil
         expect do
           result = described_class.call(
-            organization_iban: bank_account.iban, organization_bic: "CRLYFRPPTOU",
-            credit_transfers: default_credit_transfers, idempotency_key: "key-1"
+            organization_iban: bank_account.iban,
+            organization_bic: "CRLYFRPPTOU",
+            credit_transfers: default_credit_transfers,
+            idempotency_key: "key-1"
           )
         end.not_to(change { ledger_snapshot })
 

@@ -36,8 +36,13 @@ RSpec.describe BulkTransfers::Request do
         total_amount_cents: 6_125_250
       )
       expect(request.credit_transfers.first).to have_attributes(
-        amount: "14.5", amount_cents: 1_450, currency: "EUR", counterparty_name: "Bip Bip",
-        counterparty_bic: "CRLYFRPPTOU", counterparty_iban: "EE383680981021245685", description: "Wonderland/4410"
+        amount: "14.5",
+        amount_cents: 1_450,
+        currency: "EUR",
+        counterparty_name: "Bip Bip",
+        counterparty_bic: "CRLYFRPPTOU",
+        counterparty_iban: "EE383680981021245685",
+        description: "Wonderland/4410"
       )
     end
 
@@ -96,7 +101,9 @@ RSpec.describe BulkTransfers::Request do
   end
 
   describe "the credit_transfers list" do
-    { nil => "missing", "abc" => "must_be_an_array", { "amount" => "1" } => "must_be_an_array",
+    { nil => "missing",
+      "abc" => "must_be_an_array",
+      { "amount" => "1" } => "must_be_an_array",
       [] => "must_not_be_empty" }.each do |credit_transfers, expected_issue|
       it "reports #{credit_transfers.inspect} as #{expected_issue}" do
         fields = valid_fields.merge(credit_transfers:)
@@ -122,8 +129,11 @@ RSpec.describe BulkTransfers::Request do
 
   describe "credit transfer fields" do
     {
-      "amount" => { nil => "missing", 14.5 => "must_be_a_string", "1.234" => "too_many_decimals",
-                    "0" => "must_be_positive", "1e3" => "invalid_format" },
+      "amount" => { nil => "missing",
+                    14.5 => "must_be_a_string",
+                    "1.234" => "too_many_decimals",
+                    "0" => "must_be_positive",
+                    "1e3" => "invalid_format" },
       "currency" => { nil => "missing", "USD" => "unsupported_currency", "eur" => "unsupported_currency" },
       "counterparty_name" => { nil => "missing", " " => "blank", "a" * 71 => "too_long" },
       "counterparty_iban" => { "EE38 3680 9810 2124 5685" => "invalid_format", 123 => "must_be_a_string" },

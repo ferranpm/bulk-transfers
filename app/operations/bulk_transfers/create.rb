@@ -68,14 +68,19 @@ module BulkTransfers
 
     def accept(account, request)
       bulk_transfer = account.bulk_transfers.create!(
-        idempotency_key: @idempotency_key, request_fingerprint: @fingerprint,
-        transfer_count: request.transfer_count, total_amount_cents: request.total_amount_cents
+        idempotency_key: @idempotency_key,
+        request_fingerprint: @fingerprint,
+        transfer_count: request.transfer_count,
+        total_amount_cents: request.total_amount_cents
       )
       Ledger.debit!(account:, bulk_transfer:, credit_transfers: request.credit_transfers)
       StructuredLog.info(
-        "bulk_transfer.accepted", bank_account_id: account.id, bulk_transfer_id: bulk_transfer.id,
-                                  transfer_count: bulk_transfer.transfer_count,
-                                  total_amount_cents: bulk_transfer.total_amount_cents, duration_ms:
+        "bulk_transfer.accepted",
+        bank_account_id: account.id,
+        bulk_transfer_id: bulk_transfer.id,
+        transfer_count: bulk_transfer.transfer_count,
+        total_amount_cents: bulk_transfer.total_amount_cents,
+        duration_ms:
       )
       Result.success(bulk_transfer)
     end
@@ -83,8 +88,10 @@ module BulkTransfers
     def replay_or_reject(bulk_transfer)
       raise IdempotencyKeyReusedError unless bulk_transfer.request_fingerprint == @fingerprint
 
-      StructuredLog.info("bulk_transfer.replayed", bank_account_id: bulk_transfer.bank_account_id,
-                                                   bulk_transfer_id: bulk_transfer.id, duration_ms:)
+      StructuredLog.info("bulk_transfer.replayed",
+                         bank_account_id: bulk_transfer.bank_account_id,
+                         bulk_transfer_id: bulk_transfer.id,
+                         duration_ms:)
       Result.success(bulk_transfer, idempotent_replay: true)
     end
 

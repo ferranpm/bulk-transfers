@@ -5,8 +5,13 @@ RSpec.describe Ledger do
     def credit_transfer(amount_cents:, counterparty_name: "Bip Bip")
       amount = format("%<euros>d.%<cents>02d", euros: amount_cents / 100, cents: amount_cents % 100)
       BulkTransfers::Request::CreditTransfer.new(
-        amount:, amount_cents:, currency: "EUR", counterparty_name:,
-        counterparty_iban: "EE383680981021245685", counterparty_bic: "CRLYFRPPTOU", description: "Wonderland/4410"
+        amount:,
+        amount_cents:,
+        currency: "EUR",
+        counterparty_name:,
+        counterparty_iban: "EE383680981021245685",
+        counterparty_bic: "CRLYFRPPTOU",
+        description: "Wonderland/4410"
       )
     end
 
@@ -40,9 +45,11 @@ RSpec.describe Ledger do
         expect(debits.map { |debit| [debit.counterparty_name, debit.amount_cents] }).to eq(
           [["Bip Bip", -1_450], ["Wile E Coyote", -2_000], ["Bugs Bunny", -999]]
         )
-        expect(debits).to all(have_attributes(bank_account_id: bank_account.id, amount_currency: "EUR",
+        expect(debits).to all(have_attributes(bank_account_id: bank_account.id,
+                                              amount_currency: "EUR",
                                               counterparty_iban: "EE383680981021245685",
-                                              counterparty_bic: "CRLYFRPPTOU", description: "Wonderland/4410"))
+                                              counterparty_bic: "CRLYFRPPTOU",
+                                              description: "Wonderland/4410"))
         expect_ledger_invariants!
       end
 
@@ -50,7 +57,8 @@ RSpec.describe Ledger do
         exact_bulk_transfer = create(:bulk_transfer, bank_account:, transfer_count: 1, total_amount_cents: 10_000)
 
         ActiveRecord::Base.transaction do
-          described_class.debit!(account: bank_account, bulk_transfer: exact_bulk_transfer,
+          described_class.debit!(account: bank_account,
+                                 bulk_transfer: exact_bulk_transfer,
                                  credit_transfers: [credit_transfer(amount_cents: 10_000)])
         end
 
@@ -64,9 +72,12 @@ RSpec.describe Ledger do
 
         expect do
           ActiveRecord::Base.transaction(requires_new: true) do
-            oversized_bulk_transfer = create(:bulk_transfer, bank_account:, transfer_count: 1,
-                                                             total_amount_cents: 10_001)
-            described_class.debit!(account: bank_account, bulk_transfer: oversized_bulk_transfer,
+            oversized_bulk_transfer = create(:bulk_transfer,
+                                             bank_account:,
+                                             transfer_count: 1,
+                                             total_amount_cents: 10_001)
+            described_class.debit!(account: bank_account,
+                                   bulk_transfer: oversized_bulk_transfer,
                                    credit_transfers: oversized_credit_transfers)
           end
         end.to raise_error(InsufficientFundsError) { |error|

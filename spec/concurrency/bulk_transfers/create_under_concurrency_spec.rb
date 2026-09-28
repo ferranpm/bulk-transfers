@@ -4,16 +4,21 @@ RSpec.describe BulkTransfers::Create, :concurrency do
   describe ".call" do
     def credit_transfer_params(amount:)
       {
-        "amount" => amount, "currency" => "EUR", "counterparty_name" => "Bip Bip",
-        "counterparty_iban" => "EE383680981021245685", "counterparty_bic" => "CRLYFRPPTOU",
+        "amount" => amount,
+        "currency" => "EUR",
+        "counterparty_name" => "Bip Bip",
+        "counterparty_iban" => "EE383680981021245685",
+        "counterparty_bic" => "CRLYFRPPTOU",
         "description" => "Wonderland/4410"
       }
     end
 
     def call_operation(account:, idempotency_key:, amount: "60")
       described_class.call(
-        organization_iban: account.iban, organization_bic: account.bic,
-        credit_transfers: [credit_transfer_params(amount:)], idempotency_key:
+        organization_iban: account.iban,
+        organization_bic: account.bic,
+        credit_transfers: [credit_transfer_params(amount:)],
+        idempotency_key:
       )
     end
 

@@ -4,8 +4,9 @@ RSpec.describe BulkTransfer do
   describe "database constraints" do
     it "rejects a reused idempotency key on the same account even when validations are skipped" do
       existing_bulk = create(:bulk_transfer)
-      duplicate_bulk = build(:bulk_transfer, bank_account: existing_bulk.bank_account,
-                                             idempotency_key: existing_bulk.idempotency_key)
+      duplicate_bulk = build(:bulk_transfer,
+                             bank_account: existing_bulk.bank_account,
+                             idempotency_key: existing_bulk.idempotency_key)
 
       expect { duplicate_bulk.save(validate: false) }
         .to raise_error(ActiveRecord::RecordNotUnique)
