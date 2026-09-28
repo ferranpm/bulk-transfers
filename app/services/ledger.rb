@@ -5,15 +5,6 @@
 # caller's transaction back. Debits are stored negative (PLAN denormalized-balance-with-movement-log).
 #   Ledger.debit!(account:, bulk_transfer:, credit_transfers:) # => inserted transaction ids, in request order
 module Ledger
-  # Decrementing in SQL means the balance is never computed in Ruby, and the WHERE clause refuses an overdraft
-  # even if a caller forgot the account lock. It is the second of three layers: the operation checks funds under
-  # the lock first, and the CHECK (balance_cents >= 0) constraint is the last one.
-  GUARDED_DEBIT_SQL = <<~SQL.squish
-    UPDATE bank_accounts
-    SET balance_cents = balance_cents - :total_amount_cents, updated_at = :updated_at
-    WHERE id = :bank_account_id AND balance_cents >= :total_amount_cents
-  SQL
-
   module_function
 
   def debit!(account:, bulk_transfer:, credit_transfers:)
@@ -26,10 +17,13 @@ module Ledger
   end
 
   def decrement_balance!(account, total_amount_cents)
-    debit_sql = BankAccount.sanitize_sql_array(
-      [GUARDED_DEBIT_SQL, { total_amount_cents:, bank_account_id: account.id, updated_at: Time.current }]
-    )
-    updated_rows = BankAccount.with_connection { |connection| connection.update(debit_sql) }
+    # Decrementing in SQL means the balance is never computed in Ruby, and the WHERE clause refuses an overdraft
+    # even if a caller forgot the account lock. It is the second of three layers: the operation checks funds under
+    # the lock first, and the CHECK (balance_cents >= 0) constraint is the last one. update_all skips validations
+    # and callbacks on purpose: the model has none that apply to a balance move (PLAN bulk-insert-strategy).
+    updated_rows = BankAccount
+                   .where(id: account.id, balance_cents: total_amount_cents..)
+                   .update_all(["balance_cents = balance_cents - ?, updated_at = ?", total_amount_cents, Time.current]) # rubocop:disable Rails/SkipsModelValidations
     return if updated_rows == 1
 
     raise InsufficientFundsError.new(
