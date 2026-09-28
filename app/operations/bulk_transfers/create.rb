@@ -29,12 +29,12 @@ module BulkTransfers
       request = Request.parse(**@raw_params)
       @fingerprint = Fingerprint.call(request)
       apply(request)
-    rescue ActiveRecord::RecordNotUnique
+    rescue ActiveRecord::RecordNotUnique => e
       # Backstop only: the account row lock serialises every request for this account, so the idempotency
       # lookup under the lock sees any committed bulk with this key and the unique index can't be hit. If the
       # locking ever changes, the index still refuses a second bulk and the request resolves as a replay or a
       # reuse. Rescued outside the transaction because the failed INSERT has aborted its savepoint.
-      resolve_duplicate_key
+      resolve_duplicate_key(e)
     rescue DomainError => e
       reject(e)
     rescue *INFRASTRUCTURE_ERRORS => e
@@ -98,11 +98,14 @@ module BulkTransfers
       Result.success(bulk_transfer, idempotent_replay: true)
     end
 
-    def resolve_duplicate_key
-      bulk_transfer = BulkTransfer.joins(:bank_account).find_by!(
+    # Any other unique index is a data or sequence bug, not a retry: re-raise it rather than answer as a replay.
+    def resolve_duplicate_key(unique_violation)
+      bulk_transfer = BulkTransfer.joins(:bank_account).find_by(
         idempotency_key: @idempotency_key,
         bank_account: { iban: @raw_params[:organization_iban], bic: @raw_params[:organization_bic] }
       )
+      raise unique_violation if bulk_transfer.nil?
+
       replay_or_reject(bulk_transfer)
     rescue DomainError => e
       reject(e)

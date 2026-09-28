@@ -150,6 +150,23 @@ RSpec.describe BulkTransfers::Create do
       end
     end
 
+    context "when a unique index other than the idempotency key refuses the insert" do
+      before do
+        bank_account
+        # Rewinds the id sequence onto an existing row, as a restore without a sequence reset would.
+        Transaction.connection.execute(
+          "SELECT setval(pg_get_serial_sequence('transactions', 'id'), (SELECT MAX(id) FROM transactions), false)"
+        )
+      end
+
+      after { Transaction.connection.reset_pk_sequence!("transactions") }
+
+      it "raises the original unique violation instead of treating it as a duplicate key" do
+        expect { call_operation }.to raise_error(ActiveRecord::RecordNotUnique, /transactions_pkey/)
+          .and(not_change { ledger_snapshot })
+      end
+    end
+
     context "when another connection holds the account lock past the lock timeout", :concurrency do
       it "fails with service_unavailable and changes nothing" do
         bank_account
