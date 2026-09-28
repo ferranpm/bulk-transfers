@@ -17,6 +17,16 @@ module LedgerInvariants
       expect(transaction_sums_by_bulk.fetch(bulk_transfer.id, 0)).to eq(-bulk_transfer.total_amount_cents)
     end
   end
+
+  # What a rejected request must leave untouched (invariant 7):
+  #   expect { call }.not_to change { ledger_snapshot }
+  def ledger_snapshot
+    {
+      balances: BankAccount.order(:id).pluck(:id, :balance_cents),
+      transaction_count: Transaction.count,
+      bulk_transfer_count: BulkTransfer.count
+    }
+  end
 end
 
 RSpec.configure do |config|
