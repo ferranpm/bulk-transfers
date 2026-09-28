@@ -168,6 +168,19 @@ RSpec.describe "POST /transfers/bulk", type: :request do
     end
   end
 
+  context "with a NUL character in a free-text field, which PostgreSQL text can't store" do
+    it "returns 422 validation_failed instead of failing on insert" do
+      sample1["credit_transfers"].first["counterparty_name"] = "Bip\u0000Bip"
+
+      expect { post_bulk(sample1) }.not_to(change { ledger_snapshot })
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body.dig("error", "details")).to eq(
+        [{ "index" => 0, "field" => "counterparty_name", "issue" => "invalid_characters" }]
+      )
+    end
+  end
+
   context "with several invalid fields" do
     it "returns 422 validation_failed listing every problem" do
       body = sample1.merge("organization_bic" => "nope")

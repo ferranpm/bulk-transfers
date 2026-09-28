@@ -135,10 +135,13 @@ RSpec.describe BulkTransfers::Request do
                     "0" => "must_be_positive",
                     "1e3" => "invalid_format" },
       "currency" => { nil => "missing", "USD" => "unsupported_currency", "eur" => "unsupported_currency" },
-      "counterparty_name" => { nil => "missing", " " => "blank", "a" * 71 => "too_long" },
+      "counterparty_name" => { nil => "missing",
+                               " " => "blank",
+                               "a" * 71 => "too_long",
+                               "Bip\u0000Bip" => "invalid_characters" },
       "counterparty_iban" => { "EE38 3680 9810 2124 5685" => "invalid_format", 123 => "must_be_a_string" },
       "counterparty_bic" => { "CRLYFRPP-TOU" => "invalid_format" },
-      "description" => { nil => "missing", "a" * 141 => "too_long" }
+      "description" => { nil => "missing", "a" * 141 => "too_long", "Invoice\u0000" => "invalid_characters" }
     }.each do |field, issues_by_value|
       issues_by_value.each do |value, expected_issue|
         it "reports #{field} #{value.inspect.truncate(20)} as #{expected_issue}" do

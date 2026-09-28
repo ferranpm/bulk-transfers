@@ -19,6 +19,8 @@ module BulkTransfers
       "counterparty_bic" => { format: BIC_FORMAT },
       "description" => { max_length: Transaction::DESCRIPTION_MAX_LENGTH }
     }.freeze
+    # PostgreSQL text columns can't store NUL, so it has to be refused here rather than fail on insert.
+    NUL_CHARACTER = "\u0000"
     CREDIT_TRANSFER_FIELDS = ["amount", "currency", *TEXT_FIELD_RULES.keys].freeze
 
     attr_reader :organization_iban, :organization_bic, :credit_transfers
@@ -70,6 +72,7 @@ module BulkTransfers
 
       def content_issue(text, format:, max_length:)
         return "blank" if text.blank?
+        return "invalid_characters" if text.include?(NUL_CHARACTER)
         return "too_long" if max_length && text.length > max_length
 
         "invalid_format" if format && !format.match?(text)
