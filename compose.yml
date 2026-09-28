@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_USER=${DATABASE_USER:-postgres}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-postgres}
+    ports:
+      - ${DATABASE_PORT:-5432}:5432
+    volumes:
+      - database_files:/var/lib/postgresql/data
+
+  web:
+    image: qonto
+    command: bundle exec puma -C config/puma.rb -p 8083
+    build:
+      context: .
+      target: development
+    environment:
+      - RAILS_ENV=${ENV:-development}
+      - DATABASE_HOST=${DATABASE_HOST:-db}
+      - DATABASE_PORT=${DATABASE_PORT:-5432}
+      - DATABASE_USER=${DATABASE_USER:-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-postgres}
+    volumes:
+      - .:/app:cached
+      - web_tmp:/app/tmp
+      - bundle_cache:/usr/local/bundle
+    depends_on:
+      - db
+    ports:
+      - 8083:8083
+
+volumes:
+  database_files:
+  bundle_cache:
+  web_tmp:

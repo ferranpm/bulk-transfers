@@ -1,0 +1,43 @@
+plugins:
+  - rubocop-performance
+  - rubocop-rails
+  - rubocop-rspec
+
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.3
+  Exclude:
+    - "bin/**/*"
+    - "db/schema.rb"
+    - "vendor/**/*"
+
+Metrics/AbcSize:
+  Max: 20
+  CountRepeatedAttributes: false
+  Exclude:
+    - "spec/support/*"
+
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+RSpec/MultipleExpectations:
+  Enabled: false
+
+RSpec/ExampleLength:
+  Enabled: false
+
+RSpec/MultipleMemoizedHelpers:
+  Max: 10
+
+Style/Documentation:
+  Enabled: false
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
