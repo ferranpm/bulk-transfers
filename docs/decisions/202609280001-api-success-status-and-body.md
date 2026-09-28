@@ -4,8 +4,8 @@ Status: Accepted (2026-09-28)
 
 ## Context
 
-`POST /transfers/bulk` debits one account for a list of credit transfers. The brief contradicts itself about
-the success response. The prose says to "add the transfers to the database, update the customer's balance,
+`POST /transfers/bulk` debits one account for a list of credit transfers. The brief leaves room for two success
+responses. The prose says to "add the transfers to the database, update the customer's balance,
 and return a 201 HTTP response". The OpenAPI contract in the same document, and the shorter version of the
 brief, declare `'204': Bulk transfer request created successfully` with no body.
 
