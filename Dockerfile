@@ -6,6 +6,7 @@ WORKDIR /app
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
       build-essential \
+      git \
       libpq-dev \
       libyaml-dev \
       pkg-config && \
