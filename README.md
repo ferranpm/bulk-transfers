@@ -185,21 +185,7 @@ in [`CLAUDE.md`](CLAUDE.md).
 [19 Testing strategy](docs/decisions/202609280019-testing-strategy.md) ·
 [21 Agent conventions](docs/decisions/202609280021-agent-conventions.md)
 
-## 7. Scaling and observability
-
-Bulks for one account run one at a time, which is what makes them correct. Bulks for different accounts run
-in parallel, so throughput grows with instances until PostgreSQL is the limit. To go further, towards
-10k requests per second:
-
-- **PgBouncer** in transaction mode (the service keeps no session state).
-- **Shard by account.** Every transaction touches one account, so there are no cross-shard transactions.
-- **Expire idempotency keys** after a retention window, for example with time-partitioned tables.
-- **Very large bulks:** cap the synchronous size. Above the cap, answer **202** with a status URL, reserve
-  the funds under the lock in one statement, and write the rows in chunks from a job.
-- **Observability:** metrics by outcome, lock-wait and duration histograms, tracing around the lock and the
-  Ledger, and a reconciliation job that alerts if invariant 2 ever drifts.
-
-## 8. Issues faced
+## 7. Issues faced
 
 - **Strong parameters hide type errors.** `permit` silently drops a value of the wrong type, so the client
   would see "missing" instead of the real problem. The controller whitelists the keys itself.
@@ -210,7 +196,7 @@ in parallel, so throughput grows with instances until PostgreSQL is the limit. T
   flags. They're kept (row-by-row writes while holding a lock is worse), with a justified inline exception
   and database constraints as the safety net.
 
-## 9. Not built yet
+## 8. Not built yet
 
 Left out deliberately rather than half-built:
 
