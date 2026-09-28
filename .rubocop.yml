@@ -49,3 +49,9 @@ Rails/SkipsModelValidations:
   Exclude:
     - "spec/**/*"
     - "db/seeds.rb"
+
+Layout/MultilineMethodArgumentLineBreaks:
+  Enabled: true
+
+Layout/MultilineHashKeyLineBreaks:
+  Enabled: true
