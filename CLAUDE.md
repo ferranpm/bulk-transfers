@@ -33,9 +33,11 @@ The `db` and `web` compose services are already running. Never run Ruby tooling 
 
 If a RuboCop rule or any convention in this file proves too strict, or you believe agents would work better
 another way, **do not silently disable it, loosen `.rubocop.yml`, or work around it.** Stop and ask the user to
-re-evaluate that rule, explaining the concrete case. Inline `# rubocop:disable` is allowed only where a decision
-record explicitly calls for it (e.g. `insert_all` in the Ledger, decision `bulk-insert-strategy`), always with a
-comment explaining why.
+re-evaluate that rule, explaining the concrete case. Rewriting code only to dodge a cop (e.g. raw SQL to avoid
+a flagged method) counts as working around it. Inline `# rubocop:disable` is allowed only where a decision
+record explicitly calls for it, always with a comment explaining why. Approved today: `Rails/SkipsModelValidations`
+on the Ledger's `insert_all!` and guarded `update_all` (decision `bulk-insert-strategy`). The cop is excluded for
+`spec/` and `db/seeds.rb`.
 
 ## Architecture and layering
 

@@ -42,3 +42,10 @@ Style/Documentation:
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes
+
+# Constraint specs must write past model validations to prove the DB CHECKs, and seeds load fixed rows by id.
+# Production code keeps the cop: every bypass there needs an inline disable backed by a decision record.
+Rails/SkipsModelValidations:
+  Exclude:
+    - "spec/**/*"
+    - "db/seeds.rb"
