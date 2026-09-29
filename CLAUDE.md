@@ -97,7 +97,8 @@ on the Ledger's `insert_all!` and guarded `update_all` (decision `bulk-insert-st
   balance equals the sum of transactions, and bulk counts and totals match their rows).
 - Every failure-path spec asserts that **nothing changed**: balance, transaction count and bulk count.
 - Arrange, Act, Assert separated by blank lines, **without** section comments.
-- Name spec files after the behaviour under test; `describe`/`context` blocks read as scenarios.
+- Name spec files after the class under test (`ledger_spec.rb` for `Ledger`); `describe`/`context` blocks
+  read as scenarios. Specs that describe a string (requests, config, seeds) are named after that behaviour.
 - Test against the real database. **Never mock the DB or locks.**
 - `spec/rails_helper.rb` forces `RAILS_ENV=test`, because compose exports `development`.
 - The test pool (`max_connections: 15`) serves concurrency threads; use `DB_LOCK_TIMEOUT` for short lock waits.
