@@ -1,7 +1,7 @@
 # Bulk transfers service
 
 A web service that lets a Qonto customer submit many credit transfers in one request and applies them **all
-or none** against the account balance. It's built with Rails 8.1 and PostgreSQL 17.
+or none** against the account balance. It's built with Rails and PostgreSQL.
 
 Every choice below has a decision record in [`docs/decisions/`](docs/decisions/) with its context, the
 alternatives that were rejected, and why. The *Why* links at the end of each section point to the relevant
