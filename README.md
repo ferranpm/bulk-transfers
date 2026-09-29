@@ -7,6 +7,9 @@ Every choice below has a decision record in [`docs/decisions/`](docs/decisions/)
 alternatives that were rejected, and why. The *Why* links at the end of each section point to the relevant
 records.
 
+For a visual version of this README, open [`docs/walkthrough.html`](docs/walkthrough.html) in a browser. It
+covers the concurrency problem, the request path, the guarantees and every decision.
+
 ## 1. What it does
 
 Large organisations pay hundreds of salaries at the end of the month in one bulk request. The service applies

@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bulk Transfers Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column (~68rem) walking outside-in — problem, request path, guarantees, decisions, process.
+   Ledger-paper neutrals with an ink-teal accent; status colours are semantic (2xx / 4xx / 5xx) and never the accent. */
+:root {
+  --bg: #f5f7f6;
+  --surface: #ffffff;
+  --sunken: #eaefed;
+  --fg: #16201d;
+  --muted: #56645f;
+  --line: #d3dcd8;
+  --accent: #0e6b5e;
+  --accent-soft: #d8ece7;
+  --ok: #1f7a3f;      --ok-soft: #dcf0e2;
+  --warn: #9a5b00;    --warn-soft: #fbecd2;
+  --bad: #b3261e;     --bad-soft: #f8dcd9;
+  --info: #2c5aa0;    --info-soft: #dde7f6;
+  --font-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1614; --surface: #161f1c; --sunken: #1c2724; --fg: #e3ebe8; --muted: #9aaba5; --line: #2b3834;
+    --accent: #5cc4b0; --accent-soft: #173a34;
+    --ok: #6fd08f; --ok-soft: #173524; --warn: #f0b458; --warn-soft: #3a2a10;
+    --bad: #f28b82; --bad-soft: #3d1c1a; --info: #8fb4ee; --info-soft: #1a2940;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1614; --surface: #161f1c; --sunken: #1c2724; --fg: #e3ebe8; --muted: #9aaba5; --line: #2b3834;
+  --accent: #5cc4b0; --accent-soft: #173a34;
+  --ok: #6fd08f; --ok-soft: #173524; --warn: #f0b458; --warn-soft: #3a2a10;
+  --bad: #f28b82; --bad-soft: #3d1c1a; --info: #8fb4ee; --info-soft: #1a2940;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.6;
+  padding-inline: 16px;
+}
+.wrap { max-width: 68rem; margin: 0 auto; padding-block: 0 5rem; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.6rem, 3vw, 2.1rem); font-weight: 700; letter-spacing: -0.01em; }
+h3 { font-size: 1.15rem; font-weight: 500; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.muted { color: var(--muted); }
+.stack { display: flex; flex-direction: column; gap: 1rem; }
+
+/* Nav */
+nav.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line); margin-inline: -16px; padding: 0.6rem 16px;
+}
+nav.top ul { list-style: none; margin: 0 auto; padding: 0; max-width: 68rem; display: flex; gap: 0.25rem 1.1rem; flex-wrap: wrap; font-size: 0.85rem; }
+nav.top a { color: var(--muted); text-decoration: none; }
+nav.top a:hover { color: var(--fg); }
+
+section { padding-block: 3.5rem 0; display: flex; flex-direction: column; gap: 1.5rem; scroll-margin-top: 4rem; }
+.section-head { display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* Hero */
+.hero { padding-block: 3.5rem 0; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 2.5rem; align-items: end; }
+.hero .lede { font-size: 1.15rem; color: var(--muted); }
+.endpoint { display: inline-flex; gap: 0.6rem; align-items: center; font-family: var(--font-mono); font-size: 0.95rem; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 0.3rem 0.9rem 0.3rem 0.35rem; width: fit-content; }
+.endpoint b { background: var(--accent); color: var(--bg); border-radius: 999px; padding: 0.05rem 0.6rem; font-weight: 500; }
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.facts div { background: var(--surface); padding: 0.9rem 1rem; display: flex; flex-direction: column; }
+.facts strong { font-family: var(--font-display); font-size: 1.7rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.facts span { font-size: 0.82rem; color: var(--muted); }
+
+/* Constraint grid */
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.pair { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem 1.2rem; display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+.pair .ask { font-family: var(--font-display); font-size: 1.1rem; font-weight: 500; }
+.pair .ask::before { content: "“"; color: var(--accent); }
+.pair .ask::after { content: "”"; color: var(--accent); }
+.pair .answer { font-size: 0.93rem; color: var(--muted); }
+.pair .answer b { color: var(--fg); font-weight: 600; }
+
+/* Race diagram */
+.race { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.lane-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem; display: flex; flex-direction: column; gap: 0.8rem; min-width: 0; }
+.lane-card header { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.lanes { display: grid; grid-template-columns: 3.2rem minmax(0,1fr) minmax(0,1fr); gap: 0.35rem 0.5rem; font-size: 0.83rem; }
+.lanes .h { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.lanes .t { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); padding-top: 0.35rem; }
+.step { border-radius: 6px; padding: 0.3rem 0.5rem; background: var(--sunken); border: 1px solid transparent; }
+.step.lock { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.step.wait { background: transparent; border: 1px dashed var(--line); color: var(--muted); }
+.step.bad { background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+.step.good { background: var(--ok-soft); color: var(--ok); font-weight: 600; }
+.empty { min-height: 1px; }
+.balance-out { font-family: var(--font-mono); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 0.7rem; display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+
+/* Pills */
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; border-radius: 999px; padding: 0.08rem 0.55rem; white-space: nowrap; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.info { background: var(--info-soft); color: var(--info); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.neutral { background: var(--sunken); color: var(--muted); }
+
+/* Request path */
+.path { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr); gap: 1rem; }
+.zone { border-radius: var(--radius); padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.zone.outside { background: var(--surface); border: 1px solid var(--line); }
+.zone.inside { background: var(--accent-soft); border: 1.5px solid var(--accent); }
+.zone-title { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.zone-title .eyebrow { color: var(--fg); }
+ol.flow { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; counter-reset: flow; }
+ol.flow li { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 0.55rem 0.7rem; display: grid; grid-template-columns: 1.6rem minmax(0, 1fr) auto; gap: 0.6rem; align-items: start; }
+ol.flow li::before { counter-increment: flow; content: counter(flow); font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); padding-top: 0.15rem; }
+ol.flow.inside-flow { counter-reset: flow 3; }
+ol.flow .what { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+ol.flow .what b { font-weight: 600; font-size: 0.93rem; }
+ol.flow .what code { color: var(--muted); font-size: 0.78rem; overflow-wrap: anywhere; }
+ol.flow .exits { display: flex; flex-direction: column; gap: 0.25rem; align-items: flex-end; }
+.commit { display: flex; gap: 0.6rem; align-items: center; justify-content: space-between; flex-wrap: wrap; font-family: var(--font-mono); font-size: 0.85rem; padding-top: 0.3rem; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-weight: 500; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); background: var(--sunken); }
+td.num { font-family: var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Samples */
+.sample { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem; display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
+.sample header { display: flex; justify-content: space-between; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; }
+.bar { height: 0.7rem; border-radius: 999px; background: var(--sunken); position: relative; overflow: hidden; }
+.bar i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+.ledger-lines { font-family: var(--font-mono); font-size: 0.82rem; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 0.2rem 1rem; font-variant-numeric: tabular-nums; }
+.ledger-lines .r { text-align: right; }
+.ledger-lines .sum { border-top: 1px solid var(--line); padding-top: 0.25rem; font-weight: 500; }
+pre { margin: 0; background: var(--sunken); border-radius: 8px; padding: 0.8rem 0.9rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.55; overflow-x: auto; }
+
+/* Defence layers */
+.layers { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.layer { display: grid; grid-template-columns: 2.4rem minmax(0,1fr); gap: 0.8rem; padding: 0.8rem 1rem; background: var(--surface); border-bottom: 1px solid var(--line); }
+.layer:last-child { border-bottom: 0; }
+.layer .n { font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; color: var(--accent); line-height: 1.2; }
+.layer p { font-size: 0.9rem; color: var(--muted); }
+.layer b { color: var(--fg); }
+
+/* Architecture */
+.arch { display: flex; flex-direction: column; gap: 0.5rem; }
+.arch-row { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); gap: 1rem; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 0.7rem 0.9rem; }
+.arch-row code { font-weight: 500; color: var(--fg); font-size: 0.85rem; overflow-wrap: anywhere; }
+.arch-row p { font-size: 0.88rem; color: var(--muted); }
+.arch-row.d1 { margin-left: 1.5rem; }
+.arch-row.d2 { margin-left: 3rem; }
+.arch-row.key { border-color: var(--accent); background: var(--accent-soft); }
+
+/* Decisions */
+.filters { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.filters button { font: inherit; font-size: 0.83rem; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px; padding: 0.25rem 0.8rem; cursor: pointer; }
+.filters button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.decisions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+details.adr { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; }
+details.adr[open] { border-color: var(--accent); }
+details.adr summary { list-style: none; cursor: pointer; padding: 0.85rem 1rem; display: grid; grid-template-columns: 2rem minmax(0,1fr) auto; gap: 0.6rem; align-items: start; }
+details.adr summary::-webkit-details-marker { display: none; }
+details.adr .no { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); padding-top: 0.15rem; }
+details.adr .ttl { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+details.adr .ttl b { font-weight: 600; font-size: 0.95rem; }
+details.adr .ttl span { font-size: 0.86rem; color: var(--muted); }
+details.adr .chev { color: var(--muted); font-family: var(--font-mono); transition: transform 0.15s; }
+details.adr[open] .chev { transform: rotate(90deg); }
+details.adr .body { padding: 0 1rem 1rem 3.6rem; display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.87rem; }
+details.adr .body h4 { margin: 0; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+details.adr ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.2rem; }
+details.adr .star { color: var(--warn); font-size: 0.75rem; font-family: var(--font-mono); }
+
+/* Process */
+ol.timeline { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 0.75rem; }
+ol.timeline li { border-top: 3px solid var(--accent); padding-top: 0.7rem; display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+ol.timeline .k { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); }
+ol.timeline b { font-family: var(--font-display); font-weight: 500; font-size: 1.05rem; }
+ol.timeline p { font-size: 0.87rem; color: var(--muted); }
+
+.callout { background: var(--sunken); border-radius: var(--radius); padding: 1rem 1.2rem; font-size: 0.93rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.callout b { font-weight: 600; }
+ul.plain { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.93rem; }
+ul.plain li::marker { color: var(--accent); }
+
+footer { padding-block: 3rem 0; font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--line); margin-top: 3.5rem; }
+
+@media (max-width: 860px) {
+  .hero, .path, .race, .grid-2, .grid-3, .decisions { grid-template-columns: minmax(0, 1fr); }
+  ol.timeline { grid-template-columns: minmax(0, 1fr); }
+  .arch-row { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
+  .arch-row.d1 { margin-left: 0.75rem; } .arch-row.d2 { margin-left: 1.5rem; }
+  details.adr .body { padding-left: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav class="top" aria-label="Sections">
+  <ul>
+    <li><a href="#problem">Problem</a></li>
+    <li><a href="#race">The race</a></li>
+    <li><a href="#path">Request path</a></li>
+    <li><a href="#api">API</a></li>
+    <li><a href="#crashes">Crashes &amp; retries</a></li>
+    <li><a href="#guarantees">Guarantees</a></li>
+    <li><a href="#decisions">Decisions</a></li>
+    <li><a href="#process">How it was built</a></li>
+    <li><a href="#next">Not built yet</a></li>
+  </ul>
+</nav>
+
+<div class="wrap">
+
+<header class="hero">
+  <div class="stack">
+    <span class="eyebrow">Backend banking challenge · submission walkthrough</span>
+    <h1>Pay hundreds of salaries in one request. All of them, or none.</h1>
+    <p class="lede">A Rails and PostgreSQL service that debits many credit transfers from one account atomically. It stays correct with several load-balanced instances, crashes at any point and clients that retry.</p>
+    <span class="endpoint"><b>POST</b> /transfers/bulk <span class="muted">+ Idempotency-Key</span></span>
+  </div>
+  <div class="facts" aria-label="Submission at a glance">
+    <div><strong>1</strong><span>row lock per request</span></div>
+    <div><strong>8</strong><span>invariants proven by specs</span></div>
+    <div><strong>22</strong><span>decision records</span></div>
+    <div><strong>0</strong><span>mocked locks or DB calls</span></div>
+  </div>
+</header>
+
+<!-- PROBLEM -->
+<section id="problem">
+  <div class="section-head">
+    <span class="eyebrow">01 · What the brief asks for</span>
+    <h2>Four constraints, four answers</h2>
+    <p class="muted">The happy path is simple: check the funds, insert rows, update the balance. The brief's hints are what make it hard. Each one maps to a specific mechanism.</p>
+  </div>
+  <div class="grid-2">
+    <div class="pair">
+      <span class="ask">Ensure you don't lose a cent during processing</span>
+      <p class="answer"><b>Integer cents everywhere.</b> <code>bigint</code> columns, Integer in Ruby, amounts parsed from strings. JSON numbers are refused because a float has already lost the exact value.</p>
+    </div>
+    <div class="pair">
+      <span class="ask">Assume multiple load-balanced instances</span>
+      <p class="answer"><b>PostgreSQL is the coordinator.</b> One <code>SELECT … FOR UPDATE</code> on the account row serialises check-then-write across every instance. No in-process mutex, no Redis.</p>
+    </div>
+    <div class="pair">
+      <span class="ask">Any process can crash at any point, and networks glitch</span>
+      <p class="answer"><b>One transaction plus an idempotency key.</b> A crash before commit rolls back. A crash after commit is resolved by a retry with the same key, which gets the original result back.</p>
+    </div>
+    <div class="pair">
+      <span class="ask">Don't accept what the balance shouldn't allow, and vice versa</span>
+      <p class="answer"><b>Three layers against overdraft</b>: the check under the lock, a guarded <code>UPDATE</code>, and a <code>CHECK (balance_cents &gt;= 0)</code> constraint. Refusals change nothing.</p>
+    </div>
+  </div>
+</section>
+
+<!-- RACE -->
+<section id="race">
+  <div class="section-head">
+    <span class="eyebrow">02 · The core problem</span>
+    <h2>Two instances, one balance</h2>
+    <p class="muted">Balance €100. Two bulks of €70 arrive at the same moment on different instances. Each would fit alone; together they don't. This read-check-write race is what the whole design is built around. The same race would let two retries of one request both debit.</p>
+  </div>
+  <div class="race">
+    <div class="lane-card">
+      <header><h3>Without coordination</h3><span class="pill bad">double spend</span></header>
+      <div class="lanes" role="table" aria-label="Timeline without a lock">
+        <span class="h"></span><span class="h">Instance A</span><span class="h">Instance B</span>
+        <span class="t">t1</span><span class="step">read balance €100</span><span class="empty"></span>
+        <span class="t">t2</span><span class="empty"></span><span class="step">read balance €100</span>
+        <span class="t">t3</span><span class="step">70 ≤ 100 ✓</span><span class="step">70 ≤ 100 ✓</span>
+        <span class="t">t4</span><span class="step">debit €70</span><span class="empty"></span>
+        <span class="t">t5</span><span class="empty"></span><span class="step">debit €70</span>
+        <span class="t">t6</span><span class="step good">201</span><span class="step bad">201</span>
+      </div>
+      <div class="balance-out"><span>€140 left a €100 account</span><span style="color:var(--bad)">balance −€40</span></div>
+    </div>
+    <div class="lane-card">
+      <header><h3>With the account row lock</h3><span class="pill ok">serialised</span></header>
+      <div class="lanes" role="table" aria-label="Timeline with a row lock">
+        <span class="h"></span><span class="h">Instance A</span><span class="h">Instance B</span>
+        <span class="t">t1</span><span class="step lock">FOR UPDATE, lock acquired</span><span class="empty"></span>
+        <span class="t">t2</span><span class="step">70 ≤ 100 ✓, debit</span><span class="step wait">FOR UPDATE… waiting</span>
+        <span class="t">t3</span><span class="step lock">COMMIT, lock released</span><span class="step wait">waiting (max 2 s)</span>
+        <span class="t">t4</span><span class="empty"></span><span class="step lock">lock acquired, reads €30</span>
+        <span class="t">t5</span><span class="empty"></span><span class="step">70 ≤ 30 ✗, ROLLBACK</span>
+        <span class="t">t6</span><span class="step good">201</span><span class="step bad">422 insufficient_funds</span>
+      </div>
+      <div class="balance-out"><span>exactly one bulk accepted</span><span style="color:var(--ok)">balance €30</span></div>
+    </div>
+  </div>
+  <div class="callout">
+    <b>Why a pessimistic row lock and not the alternatives</b>
+    <p>A conditional <code>UPDATE … WHERE balance_cents &gt;= total</code> also prevents the double spend, but it doesn't serialise the idempotency lookup: two same-key retries would both try to debit and we'd rely on a unique-index exception to undo one. Optimistic locking causes retry storms on a hot payroll account. SERIALIZABLE needs a retry loop around every transaction. Advisory locks are a second scheme future code must remember. One row lock keeps every rule in plain Ruby, in one place. Different accounts never wait on each other, and a single lock can't deadlock.</p>
+  </div>
+</section>
+
+<!-- REQUEST PATH -->
+<section id="path">
+  <div class="section-head">
+    <span class="eyebrow">03 · How a request flows</span>
+    <h2>Cheap checks outside, one short transaction inside</h2>
+    <p class="muted">Validation and fingerprinting happen before touching the database, so a malformed request never adds contention. Everything that depends on the balance or on previous requests happens under the lock.</p>
+  </div>
+  <div class="path">
+    <div class="zone outside">
+      <div class="zone-title"><span class="eyebrow">Before the database</span><span class="pill neutral">no lock</span></div>
+      <ol class="flow">
+        <li><span class="what"><b>Check headers</b><code>Idempotency-Key, Content-Type</code></span><span class="exits"><span class="pill warn">400</span></span></li>
+        <li><span class="what"><b>Parse &amp; validate</b><code>collects every error</code></span><span class="exits"><span class="pill warn">422</span></span></li>
+        <li><span class="what"><b>Fingerprint</b><code>SHA-256 of canonical JSON</code></span><span class="exits"></span></li>
+      </ol>
+    </div>
+    <div class="zone inside">
+      <div class="zone-title"><span class="eyebrow">One transaction · READ COMMITTED</span><span class="pill info">BEGIN</span></div>
+      <ol class="flow inside-flow">
+        <li><span class="what"><b>Lock the account row</b><code>SELECT … FROM bank_accounts WHERE iban, bic FOR UPDATE</code></span><span class="exits"><span class="pill warn">422 not found</span><span class="pill bad">503 after 2 s</span></span></li>
+        <li><span class="what"><b>Look up the idempotency key</b><code>same fingerprint → replay · different → reused</code></span><span class="exits"><span class="pill info">200 replay</span><span class="pill warn">422 reused</span></span></li>
+        <li><span class="what"><b>Check funds in Ruby</b><code>balance_cents ≥ total, else raise → ROLLBACK</code></span><span class="exits"><span class="pill warn">422 funds</span></span></li>
+        <li><span class="what"><b>Insert the bulk</b><code>INSERT INTO bulk_transfers (…, idempotency_key)</code></span><span class="exits"></span></li>
+        <li><span class="what"><b>Guarded debit</b><code>UPDATE … SET balance_cents = balance_cents − total WHERE balance_cents ≥ total</code></span><span class="exits"></span></li>
+        <li><span class="what"><b>Insert every transaction</b><code>one multi-row INSERT, debits negative, RETURNING id</code></span><span class="exits"></span></li>
+      </ol>
+      <div class="commit"><span>COMMIT → lock released</span><span class="pill ok">201 + every created transfer</span></div>
+    </div>
+  </div>
+
+  <div class="section-head" style="margin-top:1rem">
+    <h3>Code layering</h3>
+  </div>
+  <div class="arch">
+    <div class="arch-row"><code>Transfers::BulksController</code><p>Thin: header and content-type checks, whitelists fields itself, renders a <code>Result</code>.</p></div>
+    <div class="arch-row d1 key"><code>BulkTransfers::Create</code><p>The one operation. Owns the transaction and the lock. Always returns a frozen <code>Result</code>, never raises to the caller.</p></div>
+    <div class="arch-row d2"><code>BulkTransfers::Request · Fingerprint</code><p>Parse, validate, hash. Pure, no database.</p></div>
+    <div class="arch-row d2 key"><code>Ledger.debit!</code><p>The only code that changes a balance or writes <code>transactions</code>. Raises on failure so the transaction rolls back.</p></div>
+  </div>
+</section>
+
+<!-- API -->
+<section id="api">
+  <div class="section-head">
+    <span class="eyebrow">04 · Contract as implemented</span>
+    <h2>Five statuses, one error shape</h2>
+    <p class="muted">The brief's prose says 201 while its OpenAPI block says 204. We chose <b>201 with a body</b> listing every created transfer with its id, in request order, so a payroll client can match each line of its file to what the bank created. The only addition to the contract is the <code>Idempotency-Key</code> header.</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Status</th><th>Code</th><th>When</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill ok">201</span></td><td class="num">—</td><td>Applied. Body: the bulk plus every created transfer with its id.</td></tr>
+        <tr><td><span class="pill info">200</span></td><td class="num">—</td><td>Replay of an applied key with the same body. Same body as the original 201; nothing debited again.</td></tr>
+        <tr><td><span class="pill warn">400</span></td><td class="num">missing_idempotency_key<br>invalid_idempotency_key<br>invalid_json</td><td>No key or one over 255 characters; malformed JSON or a non-JSON <code>Content-Type</code>.</td></tr>
+        <tr><td><span class="pill warn">422</span></td><td class="num">validation_failed</td><td>Any field rule. <code>details</code> lists every problem as <code>{ index, field, issue }</code>.</td></tr>
+        <tr><td><span class="pill warn">422</span></td><td class="num">account_not_found</td><td>No account matches both IBAN and BIC.</td></tr>
+        <tr><td><span class="pill warn">422</span></td><td class="num">insufficient_funds</td><td>Total above the balance. <code>details</code> carries both amounts.</td></tr>
+        <tr><td><span class="pill warn">422</span></td><td class="num">idempotency_key_reused</td><td>Key already used on this account for a different body.</td></tr>
+        <tr><td><span class="pill bad">503</span></td><td class="num">service_unavailable</td><td>Lock not obtained in 2 s, deadlock, timeout or lost connection. <code>Retry-After: 1</code>; nothing applied.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2">
+    <div class="sample">
+      <header><h3>sample1.json</h3><span class="pill ok">201 Created</span></header>
+      <div class="ledger-lines">
+        <span>Bip Bip · Wonderland/4410</span><span class="r">€14.50</span>
+        <span>Wile E Coyote · TeslaMotors</span><span class="r">€61,238.00</span>
+        <span>Bugs Bunny · GoldenCarrot</span><span class="r">€999.00</span>
+        <span class="sum">Total</span><span class="r sum">€62,251.50</span>
+      </div>
+      <div class="bar" role="img" aria-label="62,251.50 of 100,000 euros used"><i style="width:62.25%;background:var(--ok)"></i></div>
+      <p class="muted" style="font-size:0.85rem">Balance €100,000.00 → €37,748.50. Retrying with the same key returns 200 and the balance stays put.</p>
+    </div>
+    <div class="sample">
+      <header><h3>sample2.json</h3><span class="pill warn">422 insufficient_funds</span></header>
+      <pre>{"error":{"code":"insufficient_funds",
+  "message":"Insufficient funds",
+  "details":{
+    "required_amount_cents":10648216,
+    "available_balance_cents":3774850}}}</pre>
+      <div class="bar" role="img" aria-label="106,482.16 euros requested, more than the balance"><i style="width:100%;background:var(--bad)"></i></div>
+      <p class="muted" style="font-size:0.85rem">€106,482.16 exceeds even the opening balance. Whole bulk refused, nothing stored, so the key stays free for a retry after a top-up.</p>
+    </div>
+  </div>
+  <p class="muted" style="font-size:0.9rem">Amounts are decimal strings in euros (<code>"14.5"</code>, <code>"61238"</code>), positive, at most two decimals. Exponent forms like <code>"2e3"</code> are refused. Names are capped at 70 characters and descriptions at 140, matching SEPA field limits so every accepted transfer can later go out on SEPA rails.</p>
+</section>
+
+<!-- CRASHES -->
+<section id="crashes">
+  <div class="section-head">
+    <span class="eyebrow">05 · Operational scenarios</span>
+    <h2>Crashes and retries</h2>
+    <p class="muted">The server can't tell a second payroll from a retry of the first by looking at the body. The client says "same request" with the key; the server stores the key <em>with</em> the bulk, so it exists only if the bulk was applied. The fingerprint is computed over canonical JSON, so a retry with different whitespace or key order still counts as the same request.</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Scenario</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Crash before <code>COMMIT</code></td><td>PostgreSQL rolls everything back. The retry with the same key is processed as new.</td></tr>
+        <tr><td>Crash after <code>COMMIT</code>, before responding</td><td>Applied. The retry gets <span class="pill info">200</span> with the original body; nothing paid twice.</td></tr>
+        <tr><td>Client disconnects mid-request</td><td>Server finishes normally. The retry gets 200 or the same refusal.</td></tr>
+        <tr><td>Connection lost during <code>COMMIT</code></td><td>Outcome unknown to the server, so <span class="pill bad">503</span>. The retry with the same key resolves it.</td></tr>
+        <tr><td>Two requests on one account</td><td>The second waits on the lock, then sees the first one's committed result.</td></tr>
+        <tr><td>Lock held longer than 2 s</td><td><span class="pill bad">503</span> with <code>Retry-After: 1</code>; nothing applied.</td></tr>
+        <tr><td>Several instances, or the database down</td><td>Instances are stateless; all coordination is in PostgreSQL. If it's down, every request is a 503 and no money moves.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- GUARANTEES -->
+<section id="guarantees">
+  <div class="section-head">
+    <span class="eyebrow">06 · What the tests prove</span>
+    <h2>Eight invariants, tested against real PostgreSQL</h2>
+    <p class="muted">No locks and no database calls are mocked. Concurrency specs run real threads on separate connections, released together so requests genuinely overlap. Every money-touching spec calls a shared <code>expect_ledger_invariants!</code> helper.</p>
+  </div>
+  <div class="grid-2">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Guarantee</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td>A balance is never negative.</td></tr>
+          <tr><td class="num">2</td><td>Balance = sum of the account's transactions.</td></tr>
+          <tr><td class="num">3</td><td>A bulk is applied completely or not at all.</td></tr>
+          <tr><td class="num">4</td><td>Each bulk's rows match its declared count and total.</td></tr>
+          <tr><td class="num">5</td><td>One key applies at most one bulk per account.</td></tr>
+          <tr><td class="num">6</td><td>Concurrent bulks never jointly exceed the balance.</td></tr>
+          <tr><td class="num">7</td><td>Every refusal (400, 422, 503) changes nothing.</td></tr>
+          <tr><td class="num">8</td><td>No floats on the money path; debits are negative, non-zero, EUR.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="stack">
+      <h3>Three layers stop an overdraft</h3>
+      <div class="layers">
+        <div class="layer"><span class="n">1</span><p><b>Funds check under the lock.</b> Plain Ruby against the locked balance; raises <code>InsufficientFundsError</code> with both amounts.</p></div>
+        <div class="layer"><span class="n">2</span><p><b>Guarded UPDATE.</b> <code>WHERE balance_cents &gt;= total</code>; zero rows updated raises and rolls back.</p></div>
+        <div class="layer"><span class="n">3</span><p><b>Database constraint.</b> <code>CHECK (balance_cents &gt;= 0)</code>, plus <code>amount_cents &lt;&gt; 0</code>, <code>currency = 'EUR'</code> and SEPA length limits.</p></div>
+      </div>
+      <h3 style="margin-top:0.5rem">Testing shape</h3>
+      <ul class="plain">
+        <li><b>Request specs</b> are the largest layer: every status and error code, both samples.</li>
+        <li><b>Unit specs</b> for branchy rules: amount parsing, Ledger, Result, fingerprint.</li>
+        <li><b>Operation specs</b> assert result, balance and rows together.</li>
+        <li><b>Concurrency specs</b> (<code>:concurrency</code>): two bulks that fit alone, exactly one accepted; parallel same-key requests, one bulk.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- DECISIONS -->
+<section id="decisions">
+  <div class="section-head">
+    <span class="eyebrow">07 · docs/decisions/</span>
+    <h2>The decisions that shaped it</h2>
+    <p class="muted">Each choice has a short record with its context, what was chosen, the rejected alternatives and why. Open a card to see what was discarded. <span class="star">★</span> marks the ones most worth discussing.</p>
+  </div>
+  <div class="filters" role="group" aria-label="Filter decisions">
+    <button type="button" data-filter="all" aria-pressed="true">All</button>
+    <button type="button" data-filter="correctness" aria-pressed="false">Correctness</button>
+    <button type="button" data-filter="api" aria-pressed="false">API</button>
+    <button type="button" data-filter="data" aria-pressed="false">Data</button>
+    <button type="button" data-filter="code" aria-pressed="false">Code &amp; tooling</button>
+  </div>
+  <div class="decisions" id="decision-list"></div>
+</section>
+
+<!-- PROCESS -->
+<section id="process">
+  <div class="section-head">
+    <span class="eyebrow">08 · How it was built</span>
+    <h2>Claude Code as a pair, with guardrails first</h2>
+    <p class="muted">The agent was treated like a new teammate: agree on the plan, set machine-checked conventions, review every step.</p>
+  </div>
+  <ol class="timeline">
+    <li><span class="k">step 1</span><b>Understand</b><p>Read the brief and name what makes it hard: several instances, crashes anywhere, client retries.</p></li>
+    <li><span class="k">step 2</span><b>Plan before code</b><p>A plan written together, questioned decision by decision: the setup, how work gets checked, the ordered steps.</p></li>
+    <li><span class="k">step 3</span><b>Guardrails</b><p>RSpec, RuboCop, Brakeman and bundler-audit behind one <code>bin/ci</code>, plus a committed <code>CLAUDE.md</code>.</p></li>
+    <li><span class="k">step 4</span><b>Iterate</b><p>Red/green TDD, one commit per step, pushing back when a result didn't fit.</p></li>
+    <li><span class="k">step 5</span><b>Final review</b><p>A pass over the whole history found two paths ending in a 500. Both fixed and covered by specs.</p></li>
+  </ol>
+  <div class="grid-3">
+    <div class="pair">
+      <span class="eyebrow">Conventions as code</span>
+      <p class="answer">Changing "how we write code here" means adding a cop, even a custom one. Agents were told to ask instead of silencing a rule; when one worked around a rule, review caught it and it became a recorded decision.</p>
+    </div>
+    <div class="pair">
+      <span class="eyebrow">Pushed back on</span>
+      <p class="answer">The first 201 proposal was a bulk summary. It became every created transfer with its id, so a payroll client can reconcile line by line.</p>
+    </div>
+    <div class="pair">
+      <span class="eyebrow">Caught in review</span>
+      <p class="answer">A NUL character in a counterparty name, and an unexpected unique-index violation. Both returned 500; both now have specs.</p>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="stack">
+      <h3>Issues faced</h3>
+      <ul class="plain">
+        <li><b>Strong parameters hide type errors.</b> <code>permit</code> silently drops wrong types, so the client would see "missing". The controller whitelists keys itself.</li>
+        <li><b>Race specs that pass vacuously.</b> Transactional fixtures hide each thread's writes. Concurrency specs commit for real and truncate afterwards.</li>
+        <li><b>Testing a 503 without mocks.</b> A second connection holds the real lock, with a short <code>lock_timeout</code>.</li>
+        <li><b>Bulk writes versus the lint rule.</b> <code>insert_all!</code> skips validations; kept with a justified inline exception, DB constraints as the safety net.</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <h3>Run it</h3>
+<pre>docker compose up -d db
+docker compose run --rm web bin/setup --skip-server
+docker compose up            # API on :8083
+
+curl -i localhost:8083/transfers/bulk \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: payroll-2026-09' \
+  --data @spec/fixtures/files/sample1.json
+
+docker compose exec web bin/ci   # the single gate</pre>
+      <p class="muted" style="font-size:0.85rem">Seed: ACME Corp with €100,000.00 and its two transactions from the provided SQLite file.</p>
+    </div>
+  </div>
+</section>
+
+<!-- NEXT -->
+<section id="next">
+  <div class="section-head">
+    <span class="eyebrow">09 · Scope</span>
+    <h2>Not built yet, on purpose</h2>
+    <p class="muted">Left out deliberately rather than half-built.</p>
+  </div>
+  <div class="grid-2">
+    <ul class="plain">
+      <li><b>Bulk size cap and async processing.</b> A very large bulk holds the account lock longer (others get 503 after 2 s) and rolls back past the 10 s statement timeout. Fix: a cap, with larger bulks answered <code>202</code> and processed by a job.</li>
+      <li><b>Full IBAN/BIC validation.</b> Shape only today; production should use <code>ibandit</code> (checksum, country lengths, BIC directory).</li>
+      <li><b>Idempotency key expiry</b> (24–72 h TTL or time-partitioned tables).</li>
+      <li><b>Authentication and authorisation.</b></li>
+    </ul>
+    <ul class="plain">
+      <li><b>Executing the transfers</b> on SEPA and publishing events downstream through an outbox.</li>
+      <li><b>Multi-currency.</b></li>
+      <li><b>A multi-instance Compose demo.</b> Concurrency specs prove correctness across connections instead.</li>
+      <li><b>Metrics, tracing, rate limiting</b> and a reconciliation job that alerts when balance ≠ sum of transactions.</li>
+    </ul>
+  </div>
+  <div class="callout">
+    <b>Where it scales from here</b>
+    <p>One account's bulks run one at a time; different accounts run in parallel, so throughput grows with instances until PostgreSQL is the limit. Next steps: PgBouncer in transaction mode (no session state is kept), sharding by account since every transaction touches exactly one, and a per-account queue for very hot accounts. Structured log events (<code>bulk_transfer.accepted / rejected / replayed / unavailable</code> with <code>duration_ms</code>) are the base for metrics and alerting.</p>
+  </div>
+</section>
+
+<footer>
+  Summarised from the repository's README and <code>docs/decisions/</code>. The README goes outside-in: the problem first, then the solution, then the mechanics, with links into each decision record.
+</footer>
+
+</div>
+
+<script>
+const decisions = [
+  { number: 1, group: "api", star: true, title: "201 with every created transfer", chosen: "201 Created with the bulk and each transaction id, in request order. The brief says both 201 and 204; the conflict is documented.", discarded: ["204 with no body: the client can't map its lines to the created ids", "201 with only the bulk id: same problem, one step removed", "Include the resulting balance: stale on the next commit, wrong on replay"] },
+  { number: 2, group: "api", star: true, title: "Replay answers 200 with the original body", chosen: "Same key and fingerprint returns 200 with the body rebuilt from the database. The status tells the client nothing new was created.", discarded: ["Identical 201 (Stripe-style): hides whether a replay happened, harder to support and debug"] },
+  { number: 3, group: "code", title: "Keep the full Rails stack", chosen: "The generated app stays; the API inherits from Api::BaseController < ActionController::API, so no CSRF, sessions or cookies.", discarded: ["Convert to api_only: churn with no functional gain", "Regenerate with --api: throws away the provided Docker setup", "skip_forgery_protection on ApplicationController: easy to forget"] },
+  { number: 4, group: "data", title: "PostgreSQL with hardcoded seeds", chosen: "Seeds copy the SQLite account and transactions, insert with on-conflict-do-nothing so a re-seed never resets a live balance.", discarded: ["Read the SQLite file at seed time: extra gem, depends on an untracked file", "Upsert: re-seeding would overwrite a balance", "Keep SQLite: no real row locks, hides the concurrency problem"] },
+  { number: 5, group: "correctness", star: true, title: "Money as integer cents", chosen: "bigint *_cents columns, Integer in Ruby. Amounts are decimal strings, positive, at most two decimals; JSON numbers and exponent forms refused.", discarded: ["Floats: rounding loses cents", "money-rails: a gem for a single-currency problem", "Bare BigDecimal: accepts \"1e3\", whitespace and \"Infinity\""] },
+  { number: 6, group: "data", title: "Stored balance plus append-only log", chosen: "balance_cents drives the funds check; transactions is an append-only log written in the same transaction. Invariant: balance = SUM(amount_cents).", discarded: ["SUM on every request: O(n) and still needs a lock", "Event sourcing: out of scope"] },
+  { number: 7, group: "data", title: "Schema changes and constraints", chosen: "Keep the provided names; add bulk_transfers, a nullable FK on transactions, CHECK constraints, UNIQUE (iban, bic) and UNIQUE (bank_account_id, idempotency_key).", discarded: ["Integer ids and no timestamps: no audit trail", "A separate idempotency_keys table with response snapshots: the bulk row already holds everything"] },
+  { number: 8, group: "correctness", star: true, title: "One pessimistic row lock", chosen: "SELECT … FOR UPDATE on the account row at READ COMMITTED. Key lookup, funds check, inserts and debit all happen under it. The only lock taken.", discarded: ["Conditional UPDATE: doesn't serialise the idempotency check", "Optimistic lock_version: retry storms on hot accounts", "SERIALIZABLE: retry loop around every transaction", "Advisory locks: a second scheme to remember", "Ruby Mutex / Redis: not shared, or extra infrastructure"] },
+  { number: 9, group: "correctness", star: true, title: "Idempotency key and fingerprint", chosen: "Required Idempotency-Key header (1–255 chars), scoped per account. SHA-256 of canonical JSON detects a key reused for a different body. Only successful bulks are stored.", discarded: ["Optional key: no retry safety", "UUID-only key: needlessly strict", "Hash of raw body bytes: whitespace changes break genuine retries", "Persisting failures: a client couldn't retry after a top-up"] },
+  { number: 10, group: "api", title: "Collect every validation error", chosen: "All problems returned in details as { index, field, issue }. Shape checks for IBAN/BIC; SEPA limits of 70 and 140 characters. No bulk size cap yet.", discarded: ["Fail-fast: poor experience for bulk clients", "Full mod-97 via ibandit: right for production, recommended in the README", "Cap at 1,000 transfers: left as a documented risk"] },
+  { number: 11, group: "api", title: "Non-JSON requests are 400", chosen: "Malformed JSON or a wrong Content-Type returns 400 invalid_json; a body that isn't an object returns 422.", discarded: ["415 for Content-Type: one more status for little benefit"] },
+  { number: 12, group: "correctness", title: "One multi-row insert", chosen: "insert_all with RETURNING id for all transaction rows, with a justified inline RuboCop exception. Response order follows ids, which Postgres assigns in VALUES order.", discarded: ["create! per row: N round trips while holding the lock"] },
+  { number: 13, group: "correctness", title: "Timeouts become 503", chosen: "lock_timeout 2 s and statement_timeout 10 s. Lock timeouts, deadlocks, cancelled queries and lost connections return 503 with Retry-After: 1.", discarded: ["5 s / 30 s: slower failure, the client retries anyway", "No Retry-After"] },
+  { number: 14, group: "code", title: "One error model", chosen: "DomainError subclasses declare code, status and message in one line. One envelope: { error: { code, message, details } }.", discarded: ["Rails default error pages or ad-hoc hashes per controller"] },
+  { number: 15, group: "code", title: "Operations return a Result", chosen: "Thin controller → one operation → a frozen, hand-rolled Result. Inner services such as Ledger raise so the transaction rolls back. No model callbacks.", discarded: ["dry-monads / Interactor / Trailblazer: a gem for about 20 lines", "Fat models with callbacks: hidden money movement"] },
+  { number: 16, group: "code", title: "Structured logging", chosen: "One key=value line per outcome with duration_ms. No IBANs, bodies or keys logged.", discarded: ["lograge / semantic_logger: a gem for about 20 lines"] },
+  { number: 17, group: "code", title: "Docker Compose dev environment", chosen: "PostgreSQL in a container; reviewers run bin/setup then docker compose up. Everything runs inside the container.", discarded: ["An entrypoint that migrates on up", "Gems baked into the image", "An nginx + replicas demo: moved to Not built yet"] },
+  { number: 18, group: "code", title: "bin/ci is the single gate", chosen: "RuboCop (rails, rspec, performance, factory_bot), Brakeman, bundler-audit, test DB prepare and RSpec behind one command.", discarded: ["Separate commands: easy to skip one", "No security scans"] },
+  { number: 19, group: "code", title: "Diamond-shaped testing", chosen: "Request specs largest; unit specs for branchy rules; real-thread concurrency specs; every failure path asserts nothing changed. Never mock the DB or locks.", discarded: ["Hand-rolled TRUNCATE", "Mocking locks: proves nothing"] },
+  { number: 20, group: "code", title: "Work on main", chosen: "Scaffold committed untouched, then one commit per step on main.", discarded: ["Feature branch and PR"] },
+  { number: 21, group: "code", title: "Committed agent conventions", chosen: "A CLAUDE.md at the root distils the conventions so agents load them automatically and reviewers can see them.", discarded: ["Pointing agents at an untracked checklist: not versioned, invisible to reviewers"] },
+  { number: 22, group: "api", title: "Outside-in README", chosen: "Problem first, then the product answer, then the mechanics, with links into each record.", discarded: ["A separate debrief document", "A technical-first README: mechanics before the problem"] }
+];
+
+const recordFiles = [
+  "api-success-status-and-body", "idempotent-replay-response", "keep-full-rails-stack", "postgresql-and-seeds",
+  "money-representation", "denormalized-balance-with-movement-log", "schema-changes", "pessimistic-row-lock",
+  "idempotency-key-and-fingerprint", "request-validation", "non-json-requests", "bulk-insert-strategy",
+  "timeouts-and-unavailability", "error-model", "operations-and-result", "structured-logging", "dev-environment",
+  "quality-gate", "testing-strategy", "git-workflow", "agent-conventions", "debrief-in-readme"
+];
+const recordPath = (number) => `decisions/20260928${String(number).padStart(4, "0")}-${recordFiles[number - 1]}.md`;
+
+const list = document.getElementById("decision-list");
+const escapeHtml = (text) => text.replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[character]));
+list.innerHTML = decisions.map((decision) => `
+  <details class="adr" data-group="${decision.group}" ${decision.number === 8 ? "open" : ""}>
+    <summary>
+      <span class="no">${String(decision.number).padStart(2, "0")}</span>
+      <span class="ttl"><b>${escapeHtml(decision.title)} ${decision.star ? '<span class="star" aria-label="key decision">★</span>' : ""}</b><span>${escapeHtml(decision.chosen)}</span></span>
+      <span class="chev" aria-hidden="true">›</span>
+    </summary>
+    <div class="body">
+      <h4>Discarded</h4>
+      <ul>${decision.discarded.map((reason) => `<li>${escapeHtml(reason)}</li>`).join("")}</ul>
+      <a href="${recordPath(decision.number)}">Read the full record</a>
+    </div>
+  </details>`).join("");
+
+const filterButtons = document.querySelectorAll(".filters button");
+filterButtons.forEach((button) => button.addEventListener("click", () => {
+  const filter = button.dataset.filter;
+  filterButtons.forEach((other) => other.setAttribute("aria-pressed", String(other === button)));
+  list.querySelectorAll("details.adr").forEach((card) => { card.hidden = filter !== "all" && card.dataset.group !== filter; });
+}));
+</script>
+</body>
+</html>
