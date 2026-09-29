@@ -10,6 +10,10 @@ records.
 For a visual version of this README, open [`docs/walkthrough.html`](docs/walkthrough.html) in a browser. It
 covers the concurrency problem, the request path, the guarantees and every decision.
 
+[`PLAN.md`](PLAN.md) is the base plan I wrote for this challenge and handed to coding agents one step at a time.
+It's kept as it was: I iterated on the code, the decisions and the conventions afterwards, so where the plan and
+the code disagree, the code and `docs/decisions/` are the source of truth.
+
 ## 1. What it does
 
 Large organisations pay hundreds of salaries at the end of the month in one bulk request. The service applies
