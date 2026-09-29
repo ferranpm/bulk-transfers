@@ -93,7 +93,7 @@ Every error has this `{ "error": { "code", "message", "details" } }` shape:
 | 503 | `service_unavailable` | Lock not obtained in 2 s, deadlock, timeout or lost connection. `Retry-After: 1`. |
 
 The full list of validation issues is in the [request specs](spec/requests/transfers/bulks_spec.rb) and the
-[validation specs](spec/services/bulk_transfers/request_validation_spec.rb).
+[validation specs](spec/services/bulk_transfers/request_spec.rb).
 
 ## 3. How it works
 
